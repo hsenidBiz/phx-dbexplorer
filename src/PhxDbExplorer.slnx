@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="PhxDbExplorer/PhxDbExplorer.csproj" />
+  <Project Path="PhxDbExplorer.Tests/PhxDbExplorer.Tests.csproj" />
+  <Project Path="PhxDbExplorer.IntegrationTests/PhxDbExplorer.IntegrationTests.csproj" />
+</Solution>
