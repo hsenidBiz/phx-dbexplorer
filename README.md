@@ -44,7 +44,19 @@ SCHEMA_FILTER=dbo,hr
 
 ---
 
-## Build
+## Installation
+
+### Option A — Download a prebuilt binary (recommended)
+
+Self-contained, single-file executables are published as [GitHub Releases](../../releases) for every tagged version — no .NET SDK (or even the .NET runtime) required on the target machine.
+
+1. Go to the [Releases](../../releases) page.
+2. Download the archive matching your OS/architecture (`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`).
+3. Extract it and point your MCP client at the extracted `PhxDbExplorer` (or `PhxDbExplorer.exe`) binary.
+
+### Option B — Build from source
+
+Requires the .NET SDK (see Prerequisites above).
 
 ```bash
 dotnet build
@@ -123,9 +135,22 @@ The container is started automatically at the beginning of the test run and torn
 
 ---
 
+## Releasing
+
+Pushing a tag matching `v*.*.*` (e.g. `v1.2.0`) triggers the [`release` workflow](.github/workflows/release.yml), which runs the unit tests, publishes self-contained single-file binaries for `win-x64`, `linux-x64`, `osx-x64`, and `osx-arm64`, and attaches them to a new GitHub Release.
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+---
+
 ## Contributing
 
 1. Fork the repository and create a feature branch.
 2. Make your changes — keep them focused and well-tested.
 3. Ensure all unit tests pass (`dotnet test src/PhxDbExplorer.Tests`).
 4. Open a pull request with a clear description of the change.
+
+Every pull request runs the [`CI` workflow](.github/workflows/ci.yml) automatically: build, unit tests, and integration tests (Testcontainers spins up its own SQL Server container on the runner — no setup needed on your end).
