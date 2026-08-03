@@ -1,0 +1,16 @@
+{
+  "name": "phx-dbexplorer-mcp",
+  "version": "1.0.0",
+  "description": "npx launcher for the Phx DB Explorer MCP server. Downloads the prebuilt self-contained binary for your OS/arch from GitHub Releases and runs it over stdio — no .NET SDK or runtime required.",
+  "license": "MIT",
+  "bin": {
+    "phx-dbexplorer-mcp": "npx/phx-dbexplorer-mcp.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hsenidBiz/phx-dbexplorer.git"
+  }
+}

@@ -72,6 +72,23 @@ Requires the .NET SDK (see Prerequisites above).
 dotnet build
 ```
 
+### Option C — `npx` (used by the PHR-Foundry Claude Code plugin)
+
+`package.json` at the repo root wraps Option A behind an `npx` launcher, so
+nothing needs to be downloaded or installed by hand:
+
+```bash
+npx -y github:hsenidBiz/phx-dbexplorer
+```
+
+On first run it downloads the release asset matching your OS/arch into
+`~/.cache/phx-dbexplorer-mcp/<version>/<rid>/` and execs it; later runs reuse
+the cached binary. Pin a specific tag with `PHX_DBEXPLORER_VERSION=1.2.0`
+(defaults to the latest release). This is what an MCP client's `command`
+should point at instead of a local binary path — see
+[phr-foundry](https://github.com/hsenidBiz/phr-foundry)'s `org-standards`
+plugin for the registered `mcpServers` entry.
+
 ---
 
 ## Registering the Server with an MCP Client
