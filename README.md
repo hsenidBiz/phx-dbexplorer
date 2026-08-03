@@ -89,6 +89,26 @@ should point at instead of a local binary path — see
 [phr-foundry](https://github.com/hsenidBiz/phr-foundry)'s `org-standards`
 plugin for the registered `mcpServers` entry.
 
+**This repo must stay public.** The launcher's download step (`GET
+/repos/.../releases/latest` and the release asset itself) is unauthenticated
+— it has no way to use a developer's own git/GitHub credentials — so a
+private repo would 404 for anyone without direct access, defeating the point
+of the `npx` install path.
+
+**You still need to set `DB_TYPE` / `CONNECTION_STRING` / `SCHEMA_FILTER`
+yourself** (see [Configuration](#configuration) above) — `npx` only fetches
+and runs the binary, it doesn't supply your database credentials. In the
+`org-standards` plugin these are wired up from `PHX_DB_TYPE` /
+`PHX_DB_CONNECTION_STRING` / `PHX_DB_SCHEMA_FILTER` in your own shell
+environment.
+
+Archive extraction on Windows uses a small self-contained zip reader (Node's
+built-in `zlib`, no external dependency) rather than shelling out to `tar` —
+GNU tar (e.g. the one bundled with Git Bash) can't read `.zip` at all, and a
+Windows path's drive-letter colon confuses tar's remote-archive detection
+regardless. Linux/macOS releases are `.tar.gz` and still extract via the
+system `tar`, which every POSIX machine has.
+
 ---
 
 ## Registering the Server with an MCP Client
