@@ -51,8 +51,18 @@ SCHEMA_FILTER=dbo,hr
 Self-contained, single-file executables are published as [GitHub Releases](../../releases) for every tagged version — no .NET SDK (or even the .NET runtime) required on the target machine.
 
 1. Go to the [Releases](../../releases) page.
-2. Download the archive matching your OS/architecture (`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`).
+2. Download the archive matching your OS/architecture:
+
+   | Asset | Platform |
+   |---|---|
+   | `PhxDbExplorer-<version>-win-x64.zip` | Windows x64 |
+   | `PhxDbExplorer-<version>-linux-x64.tar.gz` | Linux x64 |
+   | `PhxDbExplorer-<version>-osx-x64.tar.gz` | macOS (Intel) |
+   | `PhxDbExplorer-<version>-osx-arm64.tar.gz` | macOS (Apple Silicon) |
+
 3. Extract it and point your MCP client at the extracted `PhxDbExplorer` (or `PhxDbExplorer.exe`) binary.
+
+Each release should have all four assets attached — if one is missing, check the [`release` workflow run](../../actions/workflows/release.yml) for that tag.
 
 ### Option B — Build from source
 
@@ -143,6 +153,8 @@ Pushing a tag matching `v*.*.*` (e.g. `v1.2.0`) triggers the [`release` workflow
 git tag v1.2.0
 git push origin v1.2.0
 ```
+
+See [`docs/readme.md`](docs/readme.md) for the full CI/CD pipeline documentation, including artifact naming, job breakdown, and pipeline verification history.
 
 ---
 
