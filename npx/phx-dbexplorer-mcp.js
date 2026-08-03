@@ -11,6 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const https = require('https');
+const zlib = require('zlib');
 
 const REPO = 'hsenidBiz/phx-dbexplorer';
 const ASSEMBLY = 'PhxDbExplorer';
@@ -83,6 +84,59 @@ function downloadFile(url, destPath) {
   });
 }
 
+// Minimal ZIP reader (stored + deflate entries only, no zip64) so extraction
+// doesn't depend on which `tar` happens to be first on PATH — GNU tar (e.g.
+// Git Bash's MSYS tar, often ahead of Windows' own bsdtar) can't read zip at
+// all, and a Windows path's drive-letter colon confuses tar's remote-archive
+// detection. Our release assets are small single-file archives, well under
+// the 4GB zip64 threshold, so the plain 32-bit fields below are sufficient.
+function extractZip(archivePath, destDir) {
+  const buf = fs.readFileSync(archivePath);
+  const EOCD_SIG = 0x06054b50;
+  let eocdOffset = -1;
+  for (let i = buf.length - 22; i >= 0; i--) {
+    if (buf.readUInt32LE(i) === EOCD_SIG) {
+      eocdOffset = i;
+      break;
+    }
+  }
+  if (eocdOffset === -1) throw new Error('Not a valid zip file (EOCD record not found)');
+
+  const entryCount = buf.readUInt16LE(eocdOffset + 10);
+  let offset = buf.readUInt32LE(eocdOffset + 16);
+
+  for (let i = 0; i < entryCount; i++) {
+    if (buf.readUInt32LE(offset) !== 0x02014b50) {
+      throw new Error('Malformed zip central directory entry');
+    }
+    const method = buf.readUInt16LE(offset + 10);
+    const compSize = buf.readUInt32LE(offset + 20);
+    const nameLen = buf.readUInt16LE(offset + 28);
+    const extraLen = buf.readUInt16LE(offset + 30);
+    const commentLen = buf.readUInt16LE(offset + 32);
+    const localHeaderOffset = buf.readUInt32LE(offset + 42);
+    const name = buf.toString('utf8', offset + 46, offset + 46 + nameLen);
+
+    const lfhNameLen = buf.readUInt16LE(localHeaderOffset + 26);
+    const lfhExtraLen = buf.readUInt16LE(localHeaderOffset + 28);
+    const dataStart = localHeaderOffset + 30 + lfhNameLen + lfhExtraLen;
+    const compData = buf.subarray(dataStart, dataStart + compSize);
+
+    if (!name.endsWith('/')) {
+      let data;
+      if (method === 0) data = compData;
+      else if (method === 8) data = zlib.inflateRawSync(compData);
+      else throw new Error(`Unsupported zip compression method ${method} for entry "${name}"`);
+
+      const outPath = path.join(destDir, name);
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      fs.writeFileSync(outPath, data);
+    }
+
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+}
+
 async function resolveVersion() {
   const pinned = process.env.PHX_DBEXPLORER_VERSION;
   if (pinned) return pinned.replace(/^v/, '');
@@ -114,14 +168,17 @@ async function ensureBinary(version, rid) {
   process.stderr.write(`[phx-dbexplorer-mcp] Downloading ${assetName}...\n`);
   await downloadFile(url, archivePath);
 
-  // Each platform's own `tar` handles the archive format published for it
-  // (bsdtar on Windows/macOS reads .zip; GNU tar on Linux reads .tar.gz) —
-  // no extra unzip dependency needed.
-  const extract = spawnSync('tar', ['-xf', archivePath, '-C', cacheDir], { stdio: 'inherit' });
-  fs.unlinkSync(archivePath);
-  if (extract.status !== 0) {
-    throw new Error(`Failed to extract ${assetName} (tar exited ${extract.status})`);
+  if (isWindows) {
+    extractZip(archivePath, cacheDir);
+  } else {
+    // Linux/macOS releases are .tar.gz — every POSIX system ships a `tar`
+    // that reads that format natively.
+    const extract = spawnSync('tar', ['-xzf', archivePath, '-C', cacheDir], { stdio: 'inherit' });
+    if (extract.status !== 0) {
+      throw new Error(`Failed to extract ${assetName} (tar exited ${extract.status})`);
+    }
   }
+  fs.unlinkSync(archivePath);
 
   if (!isWindows) fs.chmodSync(exePath, 0o755);
   return exePath;
