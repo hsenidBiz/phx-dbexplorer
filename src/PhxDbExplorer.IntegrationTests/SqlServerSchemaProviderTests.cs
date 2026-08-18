@@ -4,7 +4,7 @@ using FluentAssertions;
 namespace PhxDbExplorer.IntegrationTests;
 
 [Collection("SqlServer")]
-public class SqlServerSchemaProviderTests(SqlServerFixture fixture) : IClassFixture<SqlServerFixture>
+public class SqlServerSchemaProviderTests(SqlServerFixture fixture)
 {
     // ── list_tables ───────────────────────────────────────────────────────────
 

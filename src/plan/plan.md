@@ -12,7 +12,7 @@ Build a read-only MCP (Model Context Protocol) server on top of the existing .NE
 | Connection config | Environment variables (`DB_TYPE`, `CONNECTION_STRING`, `SCHEMA_FILTER`) |
 | Multi-DB | One database at a time, configured at startup |
 | Schema scope | Schema name filtering via `SCHEMA_FILTER` env var |
-| Data access | Schema/metadata only — zero row-data queries |
+| Data access | Schema/metadata, plus guarded read-only row data (see *Data Read* below) |
 
 ## Environment Variables
 | Variable | Description | Example |
@@ -67,7 +67,10 @@ PhxDbExplorer/
 ## Security Constraints
 - Connection is opened with the exact connection string provided — no privilege escalation
 - All queries target `information_schema`, `sys.*` (SQL Server), and `pg_catalog` / `information_schema` (Postgres) — metadata views only
-- No `SELECT * FROM <user_table>` queries ever executed
+- Row-data reads go through `sample_table_data` / `execute_query` only, and are held to
+  read-only by four independent layers: statement validation, an always-rolled-back
+  transaction (`READ ONLY` on PostgreSQL), catalog-resolved identifiers that are never
+  interpolated from caller input, and the `SCHEMA_FILTER` / `MAX_ROWS` limits
 - `SCHEMA_FILTER` defaults to `dbo` (SQL Server) / `public` (Postgres) if not set — opt-in to expand
 - Connection string never logged or exposed in tool responses
 
@@ -100,3 +103,31 @@ PhxDbExplorer/
   }
 }
 ```
+
+---
+
+## Data Read (added after the original schema-only scope)
+
+The original plan deliberately executed no row-data queries. That constraint was lifted:
+assistants that can see a schema but not a single row cannot tell a nullable column from an
+always-null one, or a lookup table from a dead one.
+
+| Tool | Purpose |
+|---|---|
+| `sample_table_data` | Rows from one table/view, with optional WHERE, ORDER BY, and limit |
+| `execute_query` | A single read-only SELECT / WITH … SELECT, for joins and aggregates |
+| `get_table_row_count` | Exact row count for a table or view |
+| `get_data_read_limits` | The active MAX_ROWS, query timeout, and readable schemas |
+
+| Concern | Decision |
+|---|---|
+| Gating | Always on — no enable flag; the connection string's own grants are the access boundary |
+| Row cap | `MAX_ROWS` (default 100), applied while reading, so arbitrary SQL is never rewritten |
+| Timeout | `QUERY_TIMEOUT_SECONDS` (default 30) |
+| Write prevention | Validator + always-rolled-back transaction (`READ ONLY` on PostgreSQL) |
+| Identifiers | Resolved against the catalog; only catalog spellings reach the SQL text |
+| WHERE / ORDER BY | Raw fragments by necessity — validated, and `;`/unbalanced parens rejected |
+
+New files: `Query/ReadOnlySqlValidator.cs`, `Providers/IDataProvider.cs`,
+`Providers/QueryResultReader.cs`, `Providers/{SqlServer,Postgres}DataProvider.cs`,
+`Models/QueryResult.cs`, `Tools/DataTools.cs`.

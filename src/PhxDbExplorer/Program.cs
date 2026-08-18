@@ -27,7 +27,9 @@ builder.Logging.AddConsole(options =>
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.AddSingleton(config);
-builder.Services.AddSingleton<ISchemaProvider>(_ => SchemaProviderFactory.Create(config));
+builder.Services.AddSingleton(_ => SchemaProviderFactory.Create(config));
+builder.Services.AddSingleton<ISchemaProvider>(sp => sp.GetRequiredService<IDatabaseProvider>());
+builder.Services.AddSingleton<IDataProvider>(sp => sp.GetRequiredService<IDatabaseProvider>());
 
 builder.Services
     .AddMcpServer(options =>
@@ -35,7 +37,8 @@ builder.Services
         options.ServerInfo = new() { Name = "phx-dbexplorer", Version = "1.0.0" };
     })
     .WithStdioServerTransport()
-    .WithTools<SchemaTools>();
+    .WithTools<SchemaTools>()
+    .WithTools<DataTools>();
 
 await builder.Build().RunAsync();
 return 0;
