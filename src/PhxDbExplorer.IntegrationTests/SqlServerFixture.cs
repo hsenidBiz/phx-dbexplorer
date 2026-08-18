@@ -16,7 +16,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
     private readonly MsSqlContainer _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
         .Build();
 
-    public ISchemaProvider Provider { get; private set; } = null!;
+    public IDatabaseProvider Provider { get; private set; } = null!;
     public DatabaseConfig Config { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -92,6 +92,18 @@ public sealed class SqlServerFixture : IAsyncLifetime
             BEGIN
                 RETURN @FirstName + ' ' + @LastName
             END
+            """,
+            """
+            INSERT INTO dbo.Departments (DepartmentName) VALUES
+                (N'Engineering'), (N'Finance'), (N'People Ops')
+            """,
+            """
+            INSERT INTO dbo.Employees (FirstName, LastName, Email, DepartmentId, Salary, IsActive) VALUES
+                (N'Ada',    N'Lovelace', N'ada@example.com',    1, 120000.00, 1),
+                (N'Grace',  N'Hopper',   N'grace@example.com',  1, 135000.00, 1),
+                (N'Alan',   N'Turing',   N'alan@example.com',   2,  99000.50, 1),
+                (N'Katherine', N'Johnson', N'kj@example.com',   2, 111000.00, 0),
+                (N'Edsger', N'Dijkstra', N'ed@example.com',  NULL,  87000.25, 1)
             """
         ];
 

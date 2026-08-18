@@ -1,6 +1,6 @@
 # Phx DB Explorer MCP Server
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes your **SQL Server** database schema to AI coding assistants (GitHub Copilot, Cursor, etc.). It allows AI tools to discover tables, views, stored procedures, functions, indexes, foreign keys, and more — without writing any SQL themselves.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes your **SQL Server** database schema to AI coding assistants (GitHub Copilot, Cursor, etc.). It allows AI tools to discover tables, views, stored procedures, functions, indexes, foreign keys, and more — without writing any SQL themselves — and to read row data through guarded, read-only tools.
 
 ---
 
@@ -33,6 +33,8 @@ The server is configured entirely through environment variables.
 | `DB_TYPE` | ✅ Yes | Database type. Use `mssql` or `sqlserver` for SQL Server. |
 | `CONNECTION_STRING` | ✅ Yes | Full ADO.NET connection string for the target database. |
 | `SCHEMA_FILTER` | ❌ No | Comma-separated list of schemas to expose (default: `dbo`). |
+| `MAX_ROWS` | ❌ No | Hard ceiling on rows returned by any data-read tool (default: `100`). A caller's `limit` is clamped to this — it can lower the cap, never raise it. |
+| `QUERY_TIMEOUT_SECONDS` | ❌ No | Command timeout for data-read queries (default: `30`). |
 
 **Example values:**
 
@@ -40,7 +42,15 @@ The server is configured entirely through environment variables.
 DB_TYPE=mssql
 CONNECTION_STRING=Server=localhost,1433;Database=MyDb;User Id=sa;Password=YourPassword;TrustServerCertificate=True;
 SCHEMA_FILTER=dbo,hr
+MAX_ROWS=100
+QUERY_TIMEOUT_SECONDS=30
 ```
+
+> **The connection string is the real access boundary.** The server never escalates
+> privileges, but it also cannot grant itself any it wasn't given. If the assistant
+> should not be able to read a table, connect with a login that cannot read it.
+> Pointing this server at production with a `db_owner` login gives every connected
+> AI client read access to every row in the configured schemas.
 
 ---
 
@@ -155,6 +165,42 @@ These tools are automatically available to your AI assistant once the server is 
 | `list_functions` | Lists all user-defined functions (UDFs) in the configured schema(s). |
 | `get_function_definition` | Returns the full definition of a function including parameters and SQL source. |
 | `search_schema` | Case-insensitive keyword search across tables, views, columns, procedures, and functions. |
+
+### Data-read tools
+
+| Tool | Description |
+|---|---|
+| `sample_table_data` | Returns rows from a table or view, with an optional `WHERE` predicate, `ORDER BY` list, and row limit. |
+| `execute_query` | Runs a single read-only `SELECT` (or `WITH … SELECT`) — for joins, aggregates, and anything sampling can't express. |
+| `get_table_row_count` | Exact row count for a table or view. |
+| `get_data_read_limits` | Reports the active `MAX_ROWS`, query timeout, and readable schemas, so a client can size requests before making them. |
+
+Both `sample_table_data` and `execute_query` return `{ columns, rows, rowCount, rowLimit, truncated }`.
+`truncated: true` means the row cap was hit and more rows matched than were returned.
+
+#### How reads are kept read-only
+
+Data access is enabled by default and constrained by four independent layers, so no single
+mistake makes a write possible:
+
+1. **Statement validation** — `execute_query` accepts only a *single* statement that starts with
+   `SELECT` or `WITH`. Writes, DDL, `EXEC`/`CALL`, `SELECT … INTO`, transaction and session
+   control, and file/external access (`OPENROWSET`, `pg_read_file`, `sp_`/`xp_` procedures, …)
+   are rejected. Validation runs against SQL with string literals, quoted identifiers, and
+   comments blanked out, so `'DELETE'` inside a literal and a `[Update]` column name are fine
+   while `DR/**/OP` cannot smuggle a keyword past it.
+2. **A transaction that is always rolled back** — every caller-supplied statement runs inside a
+   transaction the server rolls back unconditionally. On PostgreSQL it is additionally a
+   `READ ONLY` transaction, so the engine itself refuses writes.
+3. **No identifier interpolation** — `sample_table_data` resolves the table against the catalog
+   first and only ever splices the catalog's own spelling into SQL, so a table or schema name
+   cannot carry syntax. `WHERE`/`ORDER BY` fragments are raw SQL by necessity and go through the
+   same validator, which additionally rejects `;` and unbalanced parentheses.
+4. **Schema and row limits** — reads are confined to `SCHEMA_FILTER`, and no response can exceed
+   `MAX_ROWS` regardless of the `limit` a caller asks for.
+
+Layer 1 is a filter, not a parser, and it fails closed: an unusual-but-legitimate query may be
+rejected. Rephrase it, or use `sample_table_data`. Layers 2–4 are the guarantees.
 
 ---
 

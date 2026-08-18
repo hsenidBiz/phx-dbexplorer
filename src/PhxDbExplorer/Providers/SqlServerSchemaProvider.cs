@@ -5,7 +5,7 @@ using PhxDbExplorer.Models;
 
 namespace PhxDbExplorer.Providers;
 
-public sealed class SqlServerSchemaProvider(DatabaseConfig config) : ISchemaProvider
+public sealed partial class SqlServerSchemaProvider(DatabaseConfig config) : IDatabaseProvider
 {
     private SqlConnection CreateConnection() => new(config.ConnectionString);
 

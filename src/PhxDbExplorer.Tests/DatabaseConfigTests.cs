@@ -122,4 +122,61 @@ public class DatabaseConfigTests : IDisposable
 
         config.ConnectionString.Should().Be(connStr);
     }
+
+    [Fact]
+    public void FromEnvironment_MaxRowsNotSet_UsesDefault()
+    {
+        SetEnv("DB_TYPE", "mssql");
+        SetEnv("CONNECTION_STRING", "Server=test;");
+        Environment.SetEnvironmentVariable("MAX_ROWS", null);
+        Environment.SetEnvironmentVariable("QUERY_TIMEOUT_SECONDS", null);
+
+        var config = DatabaseConfig.FromEnvironment();
+
+        config.MaxRows.Should().Be(DatabaseConfig.DefaultMaxRows);
+        config.QueryTimeoutSeconds.Should().Be(DatabaseConfig.DefaultQueryTimeoutSeconds);
+    }
+
+    [Fact]
+    public void FromEnvironment_MaxRowsParsed()
+    {
+        SetEnv("DB_TYPE", "mssql");
+        SetEnv("CONNECTION_STRING", "Server=test;");
+        SetEnv("MAX_ROWS", "500");
+        SetEnv("QUERY_TIMEOUT_SECONDS", "90");
+
+        var config = DatabaseConfig.FromEnvironment();
+
+        config.MaxRows.Should().Be(500);
+        config.QueryTimeoutSeconds.Should().Be(90);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-5")]
+    [InlineData("many")]
+    public void FromEnvironment_InvalidMaxRows_Throws(string value)
+    {
+        SetEnv("DB_TYPE", "mssql");
+        SetEnv("CONNECTION_STRING", "Server=test;");
+        SetEnv("MAX_ROWS", value);
+
+        var act = () => DatabaseConfig.FromEnvironment();
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*MAX_ROWS*");
+    }
+
+    [Theory]
+    [InlineData(null, 100)]
+    [InlineData(0, 100)]
+    [InlineData(-1, 100)]
+    [InlineData(10, 10)]
+    [InlineData(100, 100)]
+    [InlineData(5000, 100)]
+    public void ResolveRowLimit_NeverExceedsMaxRows(int? requested, int expected)
+    {
+        var config = new DatabaseConfig { MaxRows = 100 };
+
+        config.ResolveRowLimit(requested).Should().Be(expected);
+    }
 }

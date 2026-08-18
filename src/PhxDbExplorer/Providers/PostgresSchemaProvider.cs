@@ -4,7 +4,7 @@ using PhxDbExplorer.Models;
 
 namespace PhxDbExplorer.Providers;
 
-public sealed class PostgresSchemaProvider(DatabaseConfig config) : ISchemaProvider
+public sealed partial class PostgresSchemaProvider(DatabaseConfig config) : IDatabaseProvider
 {
     private NpgsqlConnection CreateConnection() => new(config.ConnectionString);
 

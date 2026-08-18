@@ -14,7 +14,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
 
-    public ISchemaProvider Provider { get; private set; } = null!;
+    public IDatabaseProvider Provider { get; private set; } = null!;
     public DatabaseConfig Config { get; private set; } = null!;
 
     public async Task InitializeAsync()
@@ -79,6 +79,16 @@ public sealed class PostgresFixture : IAsyncLifetime
                 RETURN p_first_name || ' ' || p_last_name;
             END;
             $$;
+
+            INSERT INTO public.departments (department_name) VALUES
+                ('Engineering'), ('Finance'), ('People Ops');
+
+            INSERT INTO public.employees (first_name, last_name, email, department_id, salary, is_active) VALUES
+                ('Ada',       'Lovelace', 'ada@example.com',   1, 120000.00, TRUE),
+                ('Grace',     'Hopper',   'grace@example.com', 1, 135000.00, TRUE),
+                ('Alan',      'Turing',   'alan@example.com',  2,  99000.50, TRUE),
+                ('Katherine', 'Johnson',  'kj@example.com',    2, 111000.00, FALSE),
+                ('Edsger',    'Dijkstra', 'ed@example.com',   NULL, 87000.25, TRUE);
             """;
 
         await using var cmd = new NpgsqlCommand(ddl, conn);

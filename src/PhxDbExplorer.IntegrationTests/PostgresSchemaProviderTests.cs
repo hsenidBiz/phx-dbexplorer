@@ -3,7 +3,7 @@ using FluentAssertions;
 namespace PhxDbExplorer.IntegrationTests;
 
 [Collection("Postgres")]
-public class PostgresSchemaProviderTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class PostgresSchemaProviderTests(PostgresFixture fixture)
 {
     // ── list_tables ───────────────────────────────────────────────────────────
 

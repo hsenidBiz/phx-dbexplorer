@@ -4,7 +4,7 @@ namespace PhxDbExplorer.Providers;
 
 public static class SchemaProviderFactory
 {
-    public static ISchemaProvider Create(DatabaseConfig config) => config.DbType switch
+    public static IDatabaseProvider Create(DatabaseConfig config) => config.DbType switch
     {
         DatabaseType.SqlServer => new SqlServerSchemaProvider(config),
         DatabaseType.PostgreSQL => new PostgresSchemaProvider(config),
